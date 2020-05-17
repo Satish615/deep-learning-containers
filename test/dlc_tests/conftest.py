@@ -55,8 +55,9 @@ def region():
 @pytest.fixture(scope="session")
 def docker_client(region):
     test_utils.run_subprocess_cmd(
-        f"$(aws ecr get-login --no-include-email --region {region})", failure="Failed to log into ECR.",
+        f"$(aws ecr get-login --no-include-email --registry-ids 669063966089 --region us-west-2 )", failure="Failed to log into ECR.",
     )
+    LOGGER.info("Login succeeded")
     return docker.from_env()
 
 

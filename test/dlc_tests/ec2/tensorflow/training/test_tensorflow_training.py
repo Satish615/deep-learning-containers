@@ -14,7 +14,7 @@ TF_OPENCV_CMD = os.path.join(CONTAINER_TESTS_PREFIX, "testOpenCV")
 
 
 if is_pr_context():
-    TF_EC2_GPU_INSTANCE_TYPE = ["p2.xlarge"]
+    TF_EC2_GPU_INSTANCE_TYPE = ["p3dn.24xlarge"]
     TF_EC2_CPU_INSTANCE_TYPE = ["c5.4xlarge"]
 else:
     TF_EC2_GPU_INSTANCE_TYPE = ["g3.4xlarge", "p2.8xlarge", "p3.16xlarge"]

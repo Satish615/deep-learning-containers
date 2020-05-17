@@ -9,7 +9,7 @@ SMDEBUG_SCRIPT = os.path.join(CONTAINER_TESTS_PREFIX, "testSmdebug")
 
 
 if os.getenv("BUILD_CONTEXT") == "PR":
-    SMDEBUG_EC2_GPU_INSTANCE_TYPE = ["p3.8xlarge"]
+    SMDEBUG_EC2_GPU_INSTANCE_TYPE = ["p3dn.24xlarge"]
     SMDEBUG_EC2_CPU_INSTANCE_TYPE = ["c5.9xlarge"]
 else:
     SMDEBUG_EC2_GPU_INSTANCE_TYPE = ["g3.4xlarge", "p2.8xlarge", "p3.16xlarge"]
