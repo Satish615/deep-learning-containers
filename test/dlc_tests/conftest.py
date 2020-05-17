@@ -55,7 +55,7 @@ def region():
 @pytest.fixture(scope="session")
 def docker_client(region):
     test_utils.run_subprocess_cmd(
-        f"$(aws ecr get-login --no-include-email --registry-ids 669063966089 --region us-west-2 )", failure="Failed to log into ECR.",
+        f"$(aws ecr get-login --no-include-email --region {region} )", failure="Failed to log into ECR.",
     )
     LOGGER.info("Login succeeded")
     return docker.from_env()
@@ -156,6 +156,8 @@ def ec2_connection(request, ec2_instance, ec2_key_name, region):
         test_utils.delete_uploaded_tests_from_s3(s3_test_artifact_location)
 
     request.addfinalizer(delete_s3_artifact_copy)
+
+    conn.run(f"$(aws ecr get-login --no-include-email --registry-ids 669063966089 --region us-west-2 )")
 
     conn.run(f"aws s3 cp --recursive {test_utils.TEST_TRANSFER_S3_BUCKET}/{artifact_folder} $HOME/container_tests")
     conn.run(f"mkdir -p $HOME/container_tests/logs && chmod -R +x $HOME/container_tests/*")

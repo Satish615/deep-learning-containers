@@ -17,9 +17,11 @@ LOGGER.setLevel(logging.INFO)
 LOGGER.addHandler(logging.StreamHandler(sys.stderr))
 
 # Constant to represent default region for boto3 commands
-DEFAULT_REGION = "us-west-2"
+DEFAULT_REGION = "us-east-1"
 # Constant to represent AMI Id used to spin up EC2 instances
-UBUNTU_16_BASE_DLAMI = "ami-0e57002aaafd42113"
+# ubuntu ami is for us-east-1 region
+UBUNTU_16_BASE_DLAMI = "ami-0adebed4facd78f14"
+
 ECS_AML2_GPU_USWEST2 = "ami-09ef8c43fa060063d"
 ECS_AML2_CPU_USWEST2 = "ami-014a2e30da708ee8b"
 
