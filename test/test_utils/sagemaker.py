@@ -101,12 +101,12 @@ def generate_sagemaker_pytest_cmd(image, sagemaker_test_type):
                          f"{sm_remote_docker_base_name} --tag {tag} {aws_id_arg} {account_id} "
                          f"{instance_type_arg} {instance_type} --junitxml {test_report}")
 
-    local_pytest_cmd = (f"{is_py3} pytest {integration_path} --region {region} {docker_base_arg} "
+    local_pytest_cmd = (f"{is_py3} pytest {integration_path} {docker_base_arg} "
                         f"{sm_local_docker_base_name} --tag {tag} --framework-version {framework_version} "
                         f"--processor {processor} --junitxml {local_test_report}")
 
     if framework == "tensorflow" and job_type != "inference":
-        local_pytest_cmd = f"{local_pytest_cmd} --py-version {py_version[2]}"
+        local_pytest_cmd = f"{local_pytest_cmd} --py-version {py_version[2]} --region {region}"
     if framework == "tensorflow" and job_type == "training":
         path = os.path.join(os.path.dirname(path), f"{framework}{framework_major_version}_training")
 
@@ -144,6 +144,7 @@ def run_sagemaker_local_tests(image):
         ec2_conn.run(f"tar -xzf {sm_tests_tar_name}")
         is_py3 = " python3 -m"
         with ec2_conn.cd(path):
+            # Install custom packages which need to be latest version"
             ec2_conn.run(f"sudo {is_py3} pip install -U pytest pytest-xdist boto3 requests pytest-rerunfailures")
             # To avoid the dpkg lock for apt remove
             ec2_conn.run("sleep 2m")
@@ -152,7 +153,6 @@ def run_sagemaker_local_tests(image):
             ec2_conn.run(pytest_command, timeout=2100)
             print(f"Downloading Test reports for image: {image}")
             ec2_conn.get(ec2_test_report_path, os.path.join("test", f"{job_type}_{tag}_sm_local.xml"))
-            print(f"Test reports downloaded for image: {image}")
     finally:
         print(f"Terminating Instances for image: {image}")
         ec2_utils.terminate_instance(instance_id, region)
