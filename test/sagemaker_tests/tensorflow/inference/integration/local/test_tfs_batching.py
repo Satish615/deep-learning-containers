@@ -22,7 +22,7 @@ import pytest
 @pytest.fixture(scope='session', autouse=True)
 def volume():
     try:
-        model_dir = os.path.abspath('test/resources/models')
+        model_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'resources', 'models'))
         subprocess.check_call(
             'docker volume create --name batching_model_volume --opt type=none '
             '--opt device={} --opt o=bind'.format(model_dir).split())

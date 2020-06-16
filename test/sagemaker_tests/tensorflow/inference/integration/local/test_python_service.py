@@ -31,9 +31,9 @@ def volume(tmpdir_factory, request):
     try:
         model_dir = os.path.join(tmpdir_factory.mktemp('test'), 'model')
         code_dir = os.path.join(model_dir, 'code')
-        test_example = 'test/resources/examples/test{}'.format(request.param)
+        test_example = 'resources/examples/test{}'.format(request.param)
 
-        model_src_dir = 'test/resources/models'
+        model_src_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'resources', 'models'))
         shutil.copytree(model_src_dir, model_dir)
         shutil.copytree(test_example, code_dir)
 
@@ -102,7 +102,7 @@ def test_zero_content():
 
 def test_large_input():
     headers = make_headers('text/csv', 'predict')
-    data_file = 'test/resources/inputs/test-large.csv'
+    data_file = 'resources/inputs/test-large.csv'
 
     with open(data_file, 'r') as file:
         large_data = file.read()
