@@ -33,8 +33,8 @@ def run_sagemaker_tests(images):
     if not images:
         return
     pool_number = len(images)
-    with Pool(pool_number) as p:
-        p.map(sm_utils.run_sagemaker_remote_tests, images)
+    # with Pool(pool_number) as p:
+    #     p.map(sm_utils.run_sagemaker_remote_tests, images)
     # Run sagemaker Local tests
     if is_pr_context():
         with concurrent.futures.ProcessPoolExecutor(max_workers=pool_number) as executor:

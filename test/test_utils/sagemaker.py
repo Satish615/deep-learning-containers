@@ -14,7 +14,7 @@ from test_utils import destroy_ssh_keypair, generate_ssh_keypair
 from test_utils import UBUNTU_16_BASE_DLAMI, SAGEMAKER_LOCAL_TEST_TYPE, \
     SAGEMAKER_REMOTE_TEST_TYPE, UBUNTU_HOME_DIR, DEFAULT_REGION
 
-ec2_client = boto3.client("ec2", config=Config(retries={'max_attempts': 10}))
+ec2_client = boto3.client("ec2", config=Config(retries={'max_attempts': 10}), region_name=DEFAULT_REGION)
 
 def assign_sagemaker_remote_job_instance_type(image):
     if "tensorflow" in image:
@@ -101,7 +101,7 @@ def generate_sagemaker_pytest_cmd(image, sagemaker_test_type):
                          f"{sm_remote_docker_base_name} --tag {tag} {aws_id_arg} {account_id} "
                          f"{instance_type_arg} {instance_type} --junitxml {test_report}")
 
-    local_pytest_cmd = (f"{is_py3} pytest {integration_path} {docker_base_arg} "
+    local_pytest_cmd = (f"{is_py3} pytest -v {integration_path} {docker_base_arg} "
                         f"{sm_local_docker_base_name} --tag {tag} --framework-version {framework_version} "
                         f"--processor {processor} --junitxml {local_test_report}")
 
@@ -126,6 +126,7 @@ def run_sagemaker_local_tests(image):
     :return: None
     """
     pytest_command, path, tag, job_type = generate_sagemaker_pytest_cmd(image, SAGEMAKER_LOCAL_TEST_TYPE)
+    print(pytest_command)
     framework = image.split("/")[1].split(":")[0].split("-")[1]
     random.seed(f"{datetime.datetime.now().strftime('%Y%m%d%H%M%S%f')}")
     ec2_key_name = f"{job_type}_{tag}_sagemaker_{random.randint(1,1000)}"
@@ -138,7 +139,7 @@ def run_sagemaker_local_tests(image):
         print(f"Launching new Instance for image: {image}")
         instance_id, ip_address = launch_sagemaker_local_ec2_instance(image, UBUNTU_16_BASE_DLAMI, ec2_key_name, region)
         ec2_conn = ec2_utils.ec2_connection(instance_id, key_file, region)
-        run(f"tar -cz --exclude='*.pytest_cache' -f {sm_tests_tar_name} {sm_tests_path}")
+        # run(f"tar -cz --exclude='*.pytest_cache' -f {sm_tests_tar_name} {sm_tests_path}")
         ec2_conn.put(sm_tests_tar_name, f"{UBUNTU_HOME_DIR}")
         ec2_conn.run(f"$(aws ecr get-login --no-include-email --region {region})")
         ec2_conn.run(f"tar -xzf {sm_tests_tar_name}")
