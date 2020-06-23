@@ -1,6 +1,7 @@
 tox
 pluggy
 flake8
+<<<<<<< HEAD
 pytest
 pytest-cov
 pytest-rerunfailures==8.0
