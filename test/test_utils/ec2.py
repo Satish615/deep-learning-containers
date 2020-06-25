@@ -3,15 +3,44 @@ import os
 import boto3
 
 from retrying import retry
+from fabric import Connection
+from botocore.config import Config
 
-from test.test_utils import DEFAULT_REGION, UBUNTU_16_BASE_DLAMI, LOGGER
-
+from test_utils import DEFAULT_REGION, UBUNTU_16_BASE_DLAMI, LOGGER
 
 EC2_INSTANCE_ROLE_NAME = "ec2TestInstanceRole"
 
 
+def get_ec2_instance_type(default, processor, enable_p3dn=False):
+    """
+    Get EC2 instance type from associated EC2_[CPU|GPU]_INSTANCE_TYPE env variable, or set it to a default
+    for contexts where the variable is not present (i.e. PR, Nightly, local testing)
+
+    :param default: Default instance type to use
+    :param processor: "cpu" or "gpu"
+    :param enable_p3dn: Boolean to determine whether or not to run tests on p3dn. If set to false, default
+    gpu instance type will be used. If default gpu instance type is p3dn, then use small gpu instance type (p2.xlarge)
+
+    :return: one item list of instance type -- this is used to parametrize tests, and parameter is required to be
+    a list.
+    """
+    allowed_processors = ("cpu", "gpu")
+    p3dn = "p3dn.24xlarge"
+    if processor not in allowed_processors:
+        raise RuntimeError(f"Aborting EC2 test run. Unrecognized processor type {processor}. "
+                           f"Please choose from {allowed_processors}")
+    if default == p3dn and not enable_p3dn:
+        raise RuntimeError("Default instance type is p3dn but p3dn testing is disabled. Please either enable p3dn "
+                           "by setting enable_p3dn=True, or change the default instance type")
+    instance_type = os.getenv(f"EC2_{processor.upper()}_INSTANCE_TYPE", default)
+    if instance_type == p3dn and not enable_p3dn:
+        return [default]
+    return [instance_type]
+
+
 def launch_instance(
-    ami_id, instance_type, region=DEFAULT_REGION, user_data=None, iam_instance_profile_arn=None, instance_name="",
+    ami_id, instance_type, ec2_key_name=None, region=DEFAULT_REGION, user_data=None,
+        iam_instance_profile_name=None, instance_name="",
 ):
     """
     Launch an instance
@@ -25,10 +54,13 @@ def launch_instance(
     """
     if not ami_id:
         raise Exception("No ami_id provided")
+    if not ec2_key_name:
+        raise Exception("Ec2 Key name must be provided")
     client = boto3.Session(region_name=region).client("ec2")
 
     # Construct the dictionary with the arguments for API call
     arguments_dict = {
+        "KeyName": ec2_key_name,
         "ImageId": ami_id,
         "InstanceType": instance_type,
         "MaxCount": 1,
@@ -39,8 +71,8 @@ def launch_instance(
     }
     if user_data:
         arguments_dict["UserData"] = user_data
-    if iam_instance_profile_arn:
-        arguments_dict["IamInstanceProfile"] = {"Arn": iam_instance_profile_arn}
+    if iam_instance_profile_name:
+        arguments_dict["IamInstanceProfile"] = {"Name": iam_instance_profile_name}
     response = client.run_instances(**arguments_dict)
 
     if not response or len(response["Instances"]) < 1:
@@ -50,6 +82,10 @@ def launch_instance(
         )
 
     return response["Instances"][0]
+
+
+def ec2_client(region):
+    return boto3.client("ec2", region_name=region, config=Config(retries={'max_attempts': 10}))
 
 
 def get_instance_from_id(instance_id, region=DEFAULT_REGION):
@@ -122,7 +158,7 @@ def get_instance_state(instance_id, region=DEFAULT_REGION):
     return instance["State"]["Name"]
 
 
-@retry(stop_max_attempt_number=16, wait_fixed=60000)
+@retry(stop_max_attempt_number=16, wait_fixed=30000)
 def check_instance_state(instance_id, state="running", region=DEFAULT_REGION):
     """
     Compares the instance state with the state argument.
@@ -290,6 +326,23 @@ def get_instance_num_gpus(instance_id=None, instance_type=None, region=DEFAULT_R
     return sum(gpu_type["Count"] for gpu_type in instance_info["GpuInfo"]["Gpus"])
 
 
+def ec2_connection(instance_id, instance_pem_file, region):
+    """
+    establish connection with EC2 instance if necessary
+    :param ec2_instance: ec2_instance pytest fixture
+    :param ec2_key_name: unique key name
+    :param region: Region where ec2 instance is launched
+    :return: Fabric connection object
+    """
+    user = get_instance_user(instance_id, region=region)
+    conn = Connection(
+        user=user,
+        host=get_public_ip(instance_id, region),
+        connect_kwargs={"key_filename": [instance_pem_file]}
+    )
+    return conn
+
+
 def execute_ec2_training_test(connection, ecr_uri, test_cmd, region=DEFAULT_REGION):
     docker_cmd = "nvidia-docker" if "gpu" in ecr_uri else "docker"
     container_test_local_dir = os.path.join("$HOME", "container_tests")
@@ -310,6 +363,26 @@ def execute_ec2_training_test(connection, ecr_uri, test_cmd, region=DEFAULT_REGI
     )
 
 
+def execute_ec2_inference_test(connection, ecr_uri, test_cmd, region=DEFAULT_REGION):
+    docker_cmd = "nvidia-docker" if "gpu" in ecr_uri else "docker"
+    container_test_local_dir = os.path.join("$HOME", "container_tests")
+
+    # Make sure we are logged into ECR so we can pull the image
+    connection.run(f"$(aws ecr get-login --no-include-email --region {region})", hide=True)
+
+    # Run training command
+    connection.run(
+        f"{docker_cmd} run --name ec2_inference_container -v {container_test_local_dir}:{os.path.join(os.sep, 'test')}"
+        f" -itd {ecr_uri} bash",
+        hide=True,
+    )
+    connection.run(
+        f"{docker_cmd} exec --user root ec2_inference_container {os.path.join(os.sep, 'bin', 'bash')} -c '{test_cmd}'",
+        hide=True,
+        timeout=3000
+    )
+
+
 def execute_ec2_training_performance_test(connection, ecr_uri, test_cmd, region=DEFAULT_REGION):
     docker_cmd = "nvidia-docker" if "gpu" in ecr_uri else "docker"
     container_test_local_dir = os.path.join("$HOME", "container_tests")
@@ -317,10 +390,38 @@ def execute_ec2_training_performance_test(connection, ecr_uri, test_cmd, region=
     # Make sure we are logged into ECR so we can pull the image
     connection.run(f"$(aws ecr get-login --no-include-email --region {region})", hide=True)
 
-    connection.run(f"{docker_cmd} pull -q {ecr_uri} ", hide=False)
+    connection.run(f"{docker_cmd} pull -q {ecr_uri}")
 
     # Run training command, display benchmark results to console
     connection.run(
         f"{docker_cmd} run -e COMMIT_INFO={os.getenv('CODEBUILD_RESOLVED_SOURCE_VERSION')} -v {container_test_local_dir}:{os.path.join(os.sep, 'test')} {ecr_uri} "
         f"{os.path.join(os.sep, 'bin', 'bash')} -c {test_cmd}"
     )
+
+
+def execute_ec2_inference_performance_test(connection, ecr_uri, test_cmd, region=DEFAULT_REGION):
+    docker_cmd = "nvidia-docker" if "gpu" in ecr_uri else "docker"
+    container_test_local_dir = os.path.join("$HOME", "container_tests")
+
+    # Make sure we are logged into ECR so we can pull the image
+    connection.run(f"$(aws ecr get-login --no-include-email --region {region})", hide=True)
+
+    connection.run(f"{docker_cmd} pull -q {ecr_uri}")
+
+    # Run training command, display benchmark results to console
+    repo_name, image_tag = ecr_uri.split("/")[-1].split(":")
+    container_name = f"{repo_name}-performance-{image_tag}-ec2"
+    connection.run(
+        f"{docker_cmd} run -d --name {container_name} "
+        f"-e COMMIT_INFO={os.getenv('CODEBUILD_RESOLVED_SOURCE_VERSION')} "
+        f"-v {container_test_local_dir}:{os.path.join(os.sep, 'test')} {ecr_uri}"
+    )
+    try:
+        connection.run(
+            f"{docker_cmd} exec {container_name} "
+            f"{os.path.join(os.sep, 'bin', 'bash')} -c {test_cmd}"
+        )
+    except Exception as e:
+        raise Exception("Failed to exec benchmark command.\n", e)
+    finally:
+        connection.run(f"docker rm -f {container_name}")

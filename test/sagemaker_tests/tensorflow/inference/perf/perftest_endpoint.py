@@ -110,14 +110,14 @@ def _random_payload(size_in_kb):
 
 # add/change these to match your endpoints
 TEST_DATA = {
-    'sm-p2xl': ('sagemaker-tensorflow-2018-11-03-14-38-51-707', b'[' + _read_file('test/resources/inputs/test-cifar.json') + b']'),
-    'sm-p316xl': ('sagemaker-tensorflow-2018-11-03-14-38-51-706', b'[' + _read_file('test/resources/inputs/test-cifar.json') + b']'),
-    'tfs-p2xl': ('sagemaker-tfs-p2-xlarge', _read_file('test/resources/inputs/test-cifar.json')),
-    'tfs-p316xl': ('sagemaker-tfs-p3-16xlarge', _read_file('test/resources/inputs/test-cifar.json')),
-    'tfs-c5xl': ('sagemaker-tfs-c5-xlarge', _read_file('test/resources/inputs/test-cifar.json')),
-    'tfs-c518xl': ('sagemaker-tfs-c5-18xlarge', _read_file('test/resources/inputs/test-cifar.json')),
-    'sm-c5xl': ('sagemaker-tensorflow-cifar-c5.xlarge', b'[' + _read_file('test/resources/inputs/test-cifar.json') + b']'),
-    'sm-c518xl': ('sagemaker-tensorflow-cifar-c5.18xlarge', b'[' + _read_file('test/resources/inputs/test-cifar.json') + b']')
+    'sm-p2xl': ('sagemaker-tensorflow-2018-11-03-14-38-51-707', b'[' + _read_file('resources/inputs/test-cifar.json') + b']'),
+    'sm-p316xl': ('sagemaker-tensorflow-2018-11-03-14-38-51-706', b'[' + _read_file('resources/inputs/test-cifar.json') + b']'),
+    'tfs-p2xl': ('sagemaker-tfs-p2-xlarge', _read_file('resources/inputs/test-cifar.json')),
+    'tfs-p316xl': ('sagemaker-tfs-p3-16xlarge', _read_file('resources/inputs/test-cifar.json')),
+    'tfs-c5xl': ('sagemaker-tfs-c5-xlarge', _read_file('resources/inputs/test-cifar.json')),
+    'tfs-c518xl': ('sagemaker-tfs-c5-18xlarge', _read_file('resources/inputs/test-cifar.json')),
+    'sm-c5xl': ('sagemaker-tensorflow-cifar-c5.xlarge', b'[' + _read_file('resources/inputs/test-cifar.json') + b']'),
+    'sm-c518xl': ('sagemaker-tensorflow-cifar-c5.18xlarge', b'[' + _read_file('resources/inputs/test-cifar.json') + b']')
 }
 
 if __name__ == '__main__':

@@ -9,7 +9,7 @@ aws_account=$(aws --region $aws_region sts --endpoint-url https://sts.$aws_regio
 # change this to match SageMaker execution role in your account
 sagemaker_role="arn:aws:iam::$aws_account:role/service-role/AmazonSageMaker-ExecutionRole-20180510T114550"
 
-tar -C test/resources/models -czf /tmp/sagemaker-tensorflow-serving-model.tar.gz .
+tar -C resources/models -czf /tmp/sagemaker-tensorflow-serving-model.tar.gz .
 aws s3 mb s3://sagemaker-$aws_region-$aws_account || true
 aws s3 cp /tmp/sagemaker-tensorflow-serving-model.tar.gz s3://sagemaker-$aws_region-$aws_account/sagemaker-tensorflow-serving/test-models/sagemaker-tensorflow-serving-model.tar.gz
 rm /tmp/sagemaker-tensorflow-serving-model.tar.gz
