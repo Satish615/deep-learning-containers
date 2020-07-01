@@ -149,8 +149,6 @@ def run_sagemaker_local_tests(image):
     region = os.getenv("AWS_REGION", DEFAULT_REGION)
     sm_tests_path = os.path.join("test", "sagemaker_tests", framework)
     sm_tests_tar_name = "sagemaker_tests.tar.gz"
-    pr_number = os.getenv("CODEBUILD_SOURCE_VERSION").replace("/", "-")
-
     ec2_test_report_path = os.path.join(UBUNTU_HOME_DIR, "test", f"{job_type}_{tag}_sm_local.xml")
     try:
         key_file = generate_ssh_keypair(ec2_client, ec2_key_name)
@@ -162,10 +160,9 @@ def run_sagemaker_local_tests(image):
         # run(f"tar -cz --exclude='*.pytest_cache' --exclude='__pycache__' -f {sm_tests_tar_name} {sm_tests_path}")
         # print(f"upload the zip file image: {image}")
         # ec2_conn.put(sm_tests_tar_name, f"{UBUNTU_HOME_DIR}")
-        run(f"git clone https://github.com/aws/deep-learning-containers && cd deep-learning-containers")
-        run(f"git fetch origin pull/{pr_number}/head:pr_{pr_number} && git checkout pr_{pr_number}")
+        run(f"aws s3 cp --recursive s3://sagemaker-local-tests-uploads/{framework} $HOME_DIR ")
         ec2_conn.run(f"$(aws ecr get-login --no-include-email --region {region})")
-        # ec2_conn.run(f"tar -xzf {sm_tests_tar_name}")
+        ec2_conn.run(f"tar -xzf {sm_tests_tar_name}")
         with ec2_conn.cd(path):
             install_sm_local_dependencies(framework, job_type, image, ec2_conn)
             ec2_conn.run(pytest_command, timeout=2100)
