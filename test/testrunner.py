@@ -32,7 +32,10 @@ def run_sagemaker_tests(images):
         return
     # This is to ensure that threads don't lock
     pool_number = (len(images)*2)
+    framework = images[0].split("/")[1].split(":")[0].split("-")[1]
+    sm_tests_path = os.path.join("test", "sagemaker_tests", framework)
     with get_context("spawn").Pool(pool_number) as p:
+        run(f"aws s3 cp --recursive {sm_tests_path} s3://sagemaker-local-tests-uploads")
         # p.map(sm_utils.run_sagemaker_remote_tests, images)
         # Run sagemaker Local tests
         p.map(sm_utils.run_sagemaker_local_tests, images)
