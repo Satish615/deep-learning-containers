@@ -342,11 +342,13 @@ def ec2_connection(instance_id, instance_pem_file, region):
     :return: Fabric connection object
     """
     user = get_instance_user(instance_id, region=region)
+    print("Before Connection ", instance_id)
     conn = Connection(
         user=user,
         host=get_public_ip(instance_id, region),
         connect_kwargs={"key_filename": [instance_pem_file]}
     )
+    print("After Connection ", instance_id)
     return conn
 
 

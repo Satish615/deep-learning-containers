@@ -162,7 +162,6 @@ def run_sagemaker_local_tests(image):
         # ec2_conn.put(sm_tests_tar_name, f"{UBUNTU_HOME_DIR}")
         run(f"aws s3 cp --recursive s3://sagemaker-local-tests-uploads/{framework} $HOME_DIR ")
         ec2_conn.run(f"$(aws ecr get-login --no-include-email --region {region})")
-        ec2_conn.run(f"tar -xzf {sm_tests_tar_name}")
         with ec2_conn.cd(path):
             install_sm_local_dependencies(framework, job_type, image, ec2_conn)
             ec2_conn.run(pytest_command, timeout=2100)
