@@ -155,15 +155,17 @@ def run_sagemaker_local_tests(image):
         print(f"Launching new Instance for image: {image}")
         instance_id, ip_address = launch_sagemaker_local_ec2_instance(image, UBUNTU_16_BASE_DLAMI, ec2_key_name, region)
         ec2_conn = ec2_utils.ec2_connection(instance_id, key_file, region)
+        print(f"tar the file in local for image: {image}")
         run(f"tar -cz --exclude='*.pytest_cache' --exclude='__pycache__' -f {sm_tests_tar_name} {sm_tests_path}")
+        print(f"upload the zip file image: {image}")
         ec2_conn.put(sm_tests_tar_name, f"{UBUNTU_HOME_DIR}")
         ec2_conn.run(f"$(aws ecr get-login --no-include-email --region {region})")
         ec2_conn.run(f"tar -xzf {sm_tests_tar_name}")
-        with ec2_conn.cd(path):
-            install_sm_local_dependencies(framework, job_type, image, ec2_conn)
-            ec2_conn.run(pytest_command, timeout=2100)
-            print(f"Downloading Test reports for image: {image}")
-            ec2_conn.get(ec2_test_report_path, os.path.join("test", f"{job_type}_{tag}_sm_local.xml"))
+        # with ec2_conn.cd(path):
+        #     install_sm_local_dependencies(framework, job_type, image, ec2_conn)
+        #     ec2_conn.run(pytest_command, timeout=2100)
+        #     print(f"Downloading Test reports for image: {image}")
+        #     ec2_conn.get(ec2_test_report_path, os.path.join("test", f"{job_type}_{tag}_sm_local.xml"))
     finally:
         print(f"Terminating Instances for image: {image}")
         ec2_utils.terminate_instance(instance_id, region)

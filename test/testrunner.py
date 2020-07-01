@@ -5,7 +5,7 @@ import logging
 import re
 import traceback
 
-from multiprocessing import Pool
+from multiprocessing import Pool, get_context, set_start_method
 import concurrent.futures
 import boto3
 import pytest
@@ -32,7 +32,7 @@ def run_sagemaker_tests(images):
         return
     # This is to ensure that threads don't lock
     pool_number = (len(images)*2)
-    with Pool(pool_number) as p:
+    with get_context("spawn").Pool(pool_number) as p:
         # p.map(sm_utils.run_sagemaker_remote_tests, images)
         # Run sagemaker Local tests
         p.map(sm_utils.run_sagemaker_local_tests, images)
