@@ -3,7 +3,7 @@ import random
 import sys
 import logging
 import re
-import traceback
+import datetime
 
 from multiprocessing import Pool, get_context, set_start_method
 import concurrent.futures
@@ -31,16 +31,35 @@ def run_sagemaker_tests(images):
     if not images:
         return
     # This is to ensure that threads don't lock
-    pool_number = (len(images)*2)
+    pool_number = (len(images) * 2)
     framework = images[0].split("/")[1].split(":")[0].split("-")[1]
     sm_tests_path = os.path.join("test", "sagemaker_tests", framework)
-    with get_context("spawn").Pool(pool_number) as p:
+    # with get_context("spawn").Pool(pool_number) as p:
+    #     run(f"aws s3 cp --recursive {sm_tests_path} "
+    #         f"s3://sagemaker-local-tests-uploads/{framework} --exclude '*pycache*'")
+    #     # p.map(sm_utils.run_sagemaker_remote_tests, images)
+    #     # Run sagemaker Local tests
+    #     p.map(sm_utils.run_sagemaker_local_tests, images)
+    #     run(f"aws s3 rm --recursive s3://sagemaker-local-tests-uploads/mxnet")
+
+    with concurrent.futures.ProcessPoolExecutor(max_workers=12) as executor:
+        random.seed(f"{datetime.datetime.now().strftime('%Y%m%d%H%M%S%f')}")
         run(f"aws s3 cp --recursive {sm_tests_path} "
             f"s3://sagemaker-local-tests-uploads/{framework} --exclude '*pycache*'")
-        # p.map(sm_utils.run_sagemaker_remote_tests, images)
-        # Run sagemaker Local tests
-        p.map(sm_utils.run_sagemaker_local_tests, images)
-        run(f"aws s3 rm --recursive s3://sagemaker-local-tests-uploads/mxnet")
+        sm_tests_folder = f"sagemaker_{framework}_{random.randint(1, 1000)}"
+        thread_results = {executor.submit(sm_utils.run_sagemaker_local_tests, sm_tests_folder, image) for image in
+                          images}
+        failed_images = []
+        for obj in concurrent.futures.as_completed(thread_results, timeout=2100):
+            image = thread_results[obj]
+            try:
+                result = obj.result()
+            except Exception as exc:
+                print(f"{image} generated an exception: {exc}")
+                failed_images.append(image)
+        if len(failed_images) > 0:
+            print(f"Sagemaker local tests failed for images {' '.join(failed_images)}")
+            sys.exit(1)
 
 
 def pull_dlc_images(images):
