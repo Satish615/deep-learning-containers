@@ -135,7 +135,7 @@ def install_sm_local_dependencies(framework, job_type, image, ec2_conn):
         # The following distutils package conflict with test dependencies
         ec2_conn.run("apt-get remove python3-scipy python3-yaml -y")
     if is_py3 and framework == "tensorflow" and job_type == "training":
-        ec2_conn.run("pip install -U sagemaker-experiments")
+        ec2_conn.run(f"{is_py3} pip install -U sagemaker-experiments")
 
 
 def run_sagemaker_local_tests(image):
