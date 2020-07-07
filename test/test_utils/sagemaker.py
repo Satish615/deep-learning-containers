@@ -5,13 +5,16 @@ import random
 import re
 from time import sleep
 
+import boto3
 from invoke.context import Context
+from botocore.config import Config
 
 from test_utils import ec2 as ec2_utils
 from test_utils import destroy_ssh_keypair, generate_ssh_keypair
 from test_utils import UBUNTU_16_BASE_DLAMI, SAGEMAKER_LOCAL_TEST_TYPE, \
     SAGEMAKER_REMOTE_TEST_TYPE, UBUNTU_HOME_DIR, DEFAULT_REGION
 
+ec2_client = boto3.client("ec2", config=Config(retries={'max_attempts': 10}), region_name=DEFAULT_REGION)
 
 def assign_sagemaker_remote_job_instance_type(image):
     if "tensorflow" in image:
@@ -175,11 +178,10 @@ def install_sm_local_dependencies(framework, job_type, image, ec2_conn):
         ec2_conn.run(f"sudo {is_py3} pip install -U sagemaker-experiments")
 
 
-def execute_local_tests(image, ec2_client):
+def execute_local_tests(image):
     """
     Run the sagemaker local tests in ec2 instance for the image
     :param image: ECR url
-    :param ec2_client: boto3_obj
     :return: None
     """
     pytest_command, path, tag, job_type = generate_sagemaker_pytest_cmd(image, SAGEMAKER_LOCAL_TEST_TYPE)

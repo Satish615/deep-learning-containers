@@ -30,13 +30,15 @@ def run_sagemaker_local_tests(images):
     if not images:
         return
     # Run sagemaker Local tests
-    framework = images[0].split("/")[1].split(":")[0].split("-")[1]
-    sm_tests_path = os.path.join("test", "sagemaker_tests", framework)
-    sm_tests_tar_name = "sagemaker_tests.tar.gz"
-    run(f"tar -cz --exclude='*.pytest_cache' --exclude='__pycache__' -f {sm_tests_tar_name} {sm_tests_path}")
-    ec2_client = boto3.client("ec2", config=Config(retries={'max_attempts': 10}), region_name=DEFAULT_REGION)
+    pool_number = len(images)
+    with Pool(pool_number) as p:
+        p.map(sm_utils.execute_sagemaker_remote_tests, images)
+        framework = images[0].split("/")[1].split(":")[0].split("-")[1]
+        sm_tests_path = os.path.join("test", "sagemaker_tests", framework)
+        sm_tests_tar_name = "sagemaker_tests.tar.gz"
+        run(f"tar -cz --exclude='*.pytest_cache' --exclude='__pycache__' -f {sm_tests_tar_name} {sm_tests_path}")
     for image in images:
-        sm_utils.execute_local_tests(image, ec2_client)
+        sm_utils.execute_local_tests(image)
 
 
 def run_sagemaker_remote_tests(images):
